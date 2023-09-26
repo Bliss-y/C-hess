@@ -1,3 +1,3 @@
-# YES I WORK ON WINDOWS SHUT UP.
+# YES I WORK ON WINDOWS SHUT, UP.
 
-# SIMPLE CHESS SERVER FROM SCRATCH IN C TO LET TWO PLAYERS PLAY.
+# Simple chess server that lets two players play through html requests. Might implement web socket protocol.
