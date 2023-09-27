@@ -9,9 +9,8 @@ int main()
     while (true)
     {
         st_ch_hashmap *map = ch_create_hash_map();
-        // printf("First round hashing!\n");
-        ch_hashmap_insert(map, "cool", 5, "not cool", 9);
-        // ch_hashmap_insert(map, "super", 6, "not super", 10);
+        printf("First round hashing!\n");
+        ch_hashmap_insert(map, "super", 6, "not super", 10);
         // ch_hashmap_insert(map, "what?", 6, "not what?", 10);
         // ch_hashmap_insert(map, "well", 5, "not well", 9);
         // ch_hashmap_insert(map, "hashed!", 8, "not hashed!", 12);

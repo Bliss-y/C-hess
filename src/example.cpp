@@ -55,7 +55,6 @@ int main()
     }
 
     // binding a socket
-
     start_result = bind(listener, result->ai_addr, (int)result->ai_addrlen);
     if (start_result == SOCKET_ERROR)
     {
@@ -66,6 +65,7 @@ int main()
         return 2;
     }
     freeaddrinfo(result);
+    printf("binded");
 
     if (listen(listener, SOMAXCONN) == SOCKET_ERROR)
     {
@@ -75,66 +75,64 @@ int main()
         return 1;
     }
 
-    /*
-    There are several different programming techniques using Winsock that
-    can be used to listen for multiple client connections.
-    One programming technique is to create a continuous loop that checks for connection requests using the listen function
-    (see Listening on a Socket).
-    If a connection request occurs, the application calls the accept, AcceptEx,
-    or WSAAccept function and passes the work to another thread to handle the request.
-    Several other programming techniques are possible.
-    src: https://learn.microsoft.com/en-us/windows/win32/winsock/accepting-a-connection
-    */
-
-    // temporary client socket
-    SOCKET clientSocket = INVALID_SOCKET;
-
-    clientSocket = accept(listener, NULL, NULL);
-
-    if (clientSocket == INVALID_SOCKET)
-    {
-        printf(" Client connection failed");
-        closesocket(listener);
-        WSACleanup();
-        return 1;
-    }
-
-    // keep recieving the bytes from client
-    char recvbuf[4000];
-    int rec_result, sendresult;
-    int recvbufflen = 4000;
     while (true)
     {
-        rec_result = recv(clientSocket, recvbuf, recvbufflen, 0);
-        if (rec_result > 0)
-        {
-            printf("recieved %d bytes: \n", rec_result);
-            printf(recvbuf);
-            // success case echoes
-            sendresult = send(clientSocket, "HTTP/1.1 200\n\n<!DOCTYPE HTML> HELLO", 34, 0);
-            if (sendresult == SOCKET_ERROR)
-            {
-                printf("sending failed");
-                closesocket(listener);
-                WSACleanup();
-                return 1;
-            }
-        }
-        else if (rec_result == 0)
-        {
-            // connection close!
-            printf("connection closed!");
-        }
 
-        else
+        printf("while loop\n");
+        // temporary client socket/
+        SOCKET clientSocket = INVALID_SOCKET;
+
+        clientSocket = accept(listener, NULL, NULL);
+        printf("client found?\n");
+        if (clientSocket == INVALID_SOCKET)
         {
-            // something went wrong in our side while listening (5xx)
-            printf("listening failed!");
-            closesocket(listener);
+            printf(" Client connection failed");
+            closesocket(clientSocket);
             WSACleanup();
             return 1;
         }
-    }
+        // keep recieving the bytes from client
+        char recvbuf[4000];
+        int rec_result, sendresult;
+        int recvbufflen = 4000;
+        bool done = false;
+        do
+        {
+            printf("still recieving ??\n");
+            rec_result = recv(clientSocket, recvbuf, recvbufflen, 0);
+            printf("yes\n");
+            if (rec_result > 0)
+            {
+                printf("recieved %d bytes: \n", rec_result);
+                printf(recvbuf);
+                // success case echoes
+                sendresult = send(clientSocket, "HTTP/1.1 200\n\n<!DOCTYPE HTML> HELLO", 38, 0);
+                done = true;
+                if (sendresult == SOCKET_ERROR)
+                {
+                    printf("sending failed");
+                    closesocket(clientSocket);
+                    WSACleanup();
+                    return 1;
+                }
+            }
+            else if (rec_result == 0)
+            {
+                printf("connection closed!");
+                closesocket(clientSocket);
+            }
 
+            else
+            {
+                // something went wrong in our side while listening (5xx)
+                printf("listening failed!");
+                closesocket(clientSocket);
+                WSACleanup();
+                return 1;
+            }
+        } while (rec_result > 0 && !done);
+        printf("closing client socket\n");
+        closesocket(clientSocket);
+    }
     return 0;
 }

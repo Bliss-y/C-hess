@@ -109,7 +109,6 @@ void ch_insert_hashelement(st_ch_hashelement **e, int index, const char *key, co
     if (!head)
     {
         head = (st_ch_hashelement *)malloc(sizeof(st_ch_hashelement));
-        head->next = (st_ch_hashelement *)malloc(sizeof(st_ch_hashelement));
         head->key = (char *)malloc(len);
         head->keylen = len;
         head->vlen = valuelen;
