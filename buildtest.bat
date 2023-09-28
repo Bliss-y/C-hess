@@ -1,1 +1,3 @@
-cl -ZI test/hashmaptest.cpp Ws2_32.lib
+pushd build
+cl -ZI ../test/%1 Ws2_32.lib
+popd

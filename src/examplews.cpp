@@ -1,10 +1,10 @@
-
 #include <Winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
+#include "./utils/sha1.cpp"
 #pragma comment(lib, "Ws2_32.lib")
 
-#define DEFAULT_PORT "3000"
+#define DEFAULT_PORT "3001"
 
 int main()
 {
@@ -107,8 +107,7 @@ int main()
                 printf(recvbuf);
                 printf("%c", recvbuf[0]);
                 // success case echoes
-                sendresult = send(clientSocket, "HTTP/1.1 200\n\n<!DOCTYPE HTML> HELLO", 38, 0);
-                done = true;
+                sendresult = send(clientSocket, "HTTP/1.1 200\r\n<!DOCTYPE HTML> HELLO", 38, 0);
                 if (sendresult == SOCKET_ERROR)
                 {
                     printf("sending failed");

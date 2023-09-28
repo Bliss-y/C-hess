@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "ch_hash.cpp";
+#include "ch_hash.cpp"
 #define INVALID_REQUEST -1
 // TURN THIS INTO MAP INSTEAD!
 struct st_headers
@@ -21,7 +21,7 @@ struct st_html
     char *path;
     char *query;
     char *protocol;
-    st_ch_hashmap headers;
+    st_ch_hashmap *headers;
     char *body;
 };
 struct st_ht_stringbuffer
@@ -30,28 +30,51 @@ struct st_ht_stringbuffer
     char *buffer;
     int len;
 };
+
 void free_stringbuffer(st_ht_stringbuffer *buffer)
 {
     free(buffer->buffer);
 }
 
-// TODO: Write a ignore whitespace function for stringbuffer
-int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
+void go_to_next_word(st_ht_stringbuffer *buffer)
 {
-    // necessary to remove any whitespace first
-    for (int i = stringbuffer->current; i < stringbuffer->len; i++)
+    for (int i = buffer->current; i < buffer->len; i++)
     {
-        if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == '\n')
+        if (buffer->buffer[i] == ' ' || buffer->buffer[i] == '\n')
         {
-            stringbuffer->current++;
+            buffer->current++;
         }
         else
         {
             break;
         }
     }
+}
+
+int ht_wordlen(st_ht_stringbuffer *buffer)
+{
+    int len = 0;
+    for (int i = buffer->current; i < buffer->len; i++)
+    {
+        if (buffer->buffer[i] == ' ' || buffer->buffer[i] == '\n' || buffer->buffer[i] == '\r')
+        {
+            break;
+        }
+        else
+        {
+            len++;
+        }
+    }
+    return len;
+}
+
+// TODO: Write a ignore whitespace function for stringbuffer
+int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
+{
+    // necessary to remove any whitespace first
+    go_to_next_word(stringbuffer);
     // length of the header
-    int len;
+    int len = 0;
     for (int i = stringbuffer->current; i < stringbuffer->len; i++)
     {
         if (stringbuffer->buffer[i] == '\n')
@@ -69,7 +92,7 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     st_ht_stringbuffer title = {};
     title.len = 0;
     int tmpcur = stringbuffer->current;
-    for (int i = tmpcur; i < len; i++)
+    for (int i = 0; i < len; i++)
     {
         if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == ':')
         {
@@ -82,8 +105,13 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     {
         return INVALID_REQUEST;
     }
+    title.buffer = (char *)malloc(sizeof(char) * (title.len + 1));
+    memcpy(title.buffer, stringbuffer->buffer + tmpcur, sizeof(char) * title.len);
+    title.buffer[title.len - 1] = '\0';
+    const char *x = title.buffer;
+    free(title.buffer);
     // get the value
-    for (int i = title.len + tmpcur; i < len; i++)
+    for (int i = 0; i < len; i++)
     {
         if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == ':')
         {
@@ -105,18 +133,34 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
         }
         value.len++;
     }
+    value.buffer = (char *)malloc(sizeof(char) * (value.len + 1));
+    memcpy(title.buffer, stringbuffer->buffer + tmpcur, sizeof(char) * value.len + 1);
+    value.buffer[value.len] = '\0';
+    const char *y = value.buffer;
+    ch_hashmap_insert(filler->headers, x, title.len, y, value.len);
+    free_stringbuffer(&title);
+    free_stringbuffer(&value);
+    return 0;
 }
 
 void free_ht_struct(st_html *filler)
 {
     free(filler->method);
+    filler->method = nullptr;
     if (filler->path)
     {
         free(filler->path);
+        filler->path = nullptr;
     }
     if (filler->query)
     {
         free(filler->query);
+        filler->query = nullptr;
+    }
+    if (filler->protocol)
+    {
+        free(filler->protocol);
+        filler->protocol = nullptr;
     }
 }
 
@@ -165,9 +209,9 @@ int chess_parse_html(const char *recb, int bufferlen, st_html *filler)
     {
         return INVALID_REQUEST;
     }
-    char *path = (char *)malloc(len);
+    char *path = (char *)malloc(len + 1);
     path[len] = '\0';
-    memcpy(path, recb + current, sizeof(char) * len);
+    memcpy(path, recb + current, sizeof(char) * (len));
     filler->path = path;
     current += len;
     len = 0;
@@ -196,9 +240,15 @@ int chess_parse_html(const char *recb, int bufferlen, st_html *filler)
     {
         return INVALID_REQUEST;
     }
-    char *protocol = (char *)malloc(len);
+    char *protocol = (char *)malloc(len + 1);
     protocol[len] = '\0';
     memcpy(protocol, recb + current, len);
     filler->protocol = protocol;
+    filler->headers = ch_create_hash_map();
+    st_ht_stringbuffer sb_rec = {};
+    sb_rec.buffer = (char *)recb; // cpp is so stupid holy shit.
+    sb_rec.current = current + len;
+    sb_rec.len = bufferlen;
+    ht_get_next_header(&sb_rec, filler);
     return 0;
 }
