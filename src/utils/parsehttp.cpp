@@ -77,7 +77,7 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     int len = 0;
     for (int i = stringbuffer->current; i < stringbuffer->len; i++)
     {
-        if (stringbuffer->buffer[i] == '\n')
+        if (stringbuffer->buffer[i] == '\n' || stringbuffer->buffer[i] == '\r')
         {
             break;
         }
@@ -92,7 +92,7 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     st_ht_stringbuffer title = {};
     title.len = 0;
     int tmpcur = stringbuffer->current;
-    for (int i = 0; i < len; i++)
+    for (int i = tmpcur; i <= len; i++)
     {
         if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == ':')
         {
@@ -107,11 +107,10 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     }
     title.buffer = (char *)malloc(sizeof(char) * (title.len + 1));
     memcpy(title.buffer, stringbuffer->buffer + tmpcur, sizeof(char) * title.len);
-    title.buffer[title.len - 1] = '\0';
+    title.buffer[title.len] = '\0';
     const char *x = title.buffer;
-    free(title.buffer);
     // get the value
-    for (int i = 0; i < len; i++)
+    for (int i = stringbuffer->current; i <= len; i++)
     {
         if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == ':')
         {
@@ -125,19 +124,19 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     st_ht_stringbuffer value = {};
     value.len = 0;
     value.current = 0;
-    for (int i = stringbuffer->current; i < len; i++)
+    for (int i = stringbuffer->current; i < stringbuffer->current + len - title.len; i++)
     {
-        if (stringbuffer->buffer[i] == ' ')
+        if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == '\n' || stringbuffer->buffer[i] == '\r')
         {
             break;
         }
         value.len++;
     }
     value.buffer = (char *)malloc(sizeof(char) * (value.len + 1));
-    memcpy(title.buffer, stringbuffer->buffer + tmpcur, sizeof(char) * value.len + 1);
+    memcpy(value.buffer, stringbuffer->buffer + stringbuffer->current, sizeof(char) * value.len);
     value.buffer[value.len] = '\0';
     const char *y = value.buffer;
-    ch_hashmap_insert(filler->headers, x, title.len, y, value.len);
+    ch_hashmap_insert(filler->headers, x, title.len + 1, y, value.len + 1);
     free_stringbuffer(&title);
     free_stringbuffer(&value);
     return 0;
@@ -161,6 +160,11 @@ void free_ht_struct(st_html *filler)
     {
         free(filler->protocol);
         filler->protocol = nullptr;
+    }
+    if (filler->headers)
+    {
+        ch_destroy_hash(filler->headers);
+        filler->headers = nullptr;
     }
 }
 
