@@ -36,12 +36,22 @@ void free_stringbuffer(st_ht_stringbuffer *buffer)
     free(buffer->buffer);
 }
 
-void go_to_next_word(st_ht_stringbuffer *buffer)
+st_ch_hashelement *ht_get_header(st_html *filler, const char *key, int keylen)
 {
+    return ch_hash_get(filler->headers, key, keylen);
+}
+
+int go_to_next_word(st_ht_stringbuffer *buffer)
+{
+    int n_headers = 0;
     for (int i = buffer->current; i < buffer->len; i++)
     {
         if (buffer->buffer[i] == ' ' || buffer->buffer[i] == '\n')
         {
+            if (buffer->buffer[i] == '\n')
+            {
+                n_headers++;
+            }
             buffer->current++;
         }
         else
@@ -49,6 +59,7 @@ void go_to_next_word(st_ht_stringbuffer *buffer)
             break;
         }
     }
+    return n_headers;
 }
 
 int ht_wordlen(st_ht_stringbuffer *buffer)
@@ -72,7 +83,10 @@ int ht_wordlen(st_ht_stringbuffer *buffer)
 int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
 {
     // necessary to remove any whitespace first
-    go_to_next_word(stringbuffer);
+    if (go_to_next_word(stringbuffer) > 1)
+    {
+        return 1;
+    }
     // length of the header
     int len = 0;
     for (int i = stringbuffer->current; i < stringbuffer->len; i++)
@@ -92,7 +106,7 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     st_ht_stringbuffer title = {};
     title.len = 0;
     int tmpcur = stringbuffer->current;
-    for (int i = tmpcur; i <= len; i++)
+    for (int i = tmpcur; i <= tmpcur + len; i++)
     {
         if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == ':')
         {
@@ -110,7 +124,7 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     title.buffer[title.len] = '\0';
     const char *x = title.buffer;
     // get the value
-    for (int i = stringbuffer->current; i <= len; i++)
+    for (int i = stringbuffer->current; i <= stringbuffer->current - title.len + len; i++)
     {
         if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == ':')
         {
@@ -124,7 +138,7 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     st_ht_stringbuffer value = {};
     value.len = 0;
     value.current = 0;
-    for (int i = stringbuffer->current; i < stringbuffer->current + len - title.len; i++)
+    for (int i = stringbuffer->current; i < tmpcur + len; i++)
     {
         if (stringbuffer->buffer[i] == ' ' || stringbuffer->buffer[i] == '\n' || stringbuffer->buffer[i] == '\r')
         {
@@ -136,6 +150,7 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     memcpy(value.buffer, stringbuffer->buffer + stringbuffer->current, sizeof(char) * value.len);
     value.buffer[value.len] = '\0';
     const char *y = value.buffer;
+    stringbuffer->current += value.len;
     ch_hashmap_insert(filler->headers, x, title.len + 1, y, value.len + 1);
     free_stringbuffer(&title);
     free_stringbuffer(&value);
@@ -253,6 +268,8 @@ int chess_parse_html(const char *recb, int bufferlen, st_html *filler)
     sb_rec.buffer = (char *)recb; // cpp is so stupid holy shit.
     sb_rec.current = current + len;
     sb_rec.len = bufferlen;
-    ht_get_next_header(&sb_rec, filler);
+    while (!ht_get_next_header(&sb_rec, filler))
+    {
+    }
     return 0;
 }
