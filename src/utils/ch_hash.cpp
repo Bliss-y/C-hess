@@ -1,24 +1,4 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-// basic linked list
-
-struct st_ch_hashelement
-{
-    char *key;
-    int keylen;
-    int vlen;
-    st_ch_hashelement *next;
-    char *value;
-};
-
-struct st_ch_hashmap
-{
-    st_ch_hashelement **table;
-    int filled_len;
-    int tablelen;
-};
-
+#include "ch_hash.h"
 // worst hashing function but hey, fuck u
 int ch_worst_hash(int max, const char *value, int len)
 {
@@ -53,6 +33,7 @@ st_ch_hashmap *ch_create_hash_map()
     map->filled_len = 0;
     return map;
 }
+
 // find in linked list
 st_ch_hashelement *ch_hashelement_find(st_ch_hashelement *e, const char *key, int len)
 {

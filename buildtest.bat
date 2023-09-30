@@ -1,4 +1,4 @@
 @echo off
 pushd build
-cl -ZI ../test/%1 Ws2_32.lib
+cl -Zi ../test/%1.cpp Ws2_32.lib ../src/utils/parsehttp.cpp
 popd

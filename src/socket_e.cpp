@@ -107,7 +107,7 @@ int main()
                 printf(recvbuf);
                 printf("%c", recvbuf[0]);
                 // success case echoes
-                sendresult = send(clientSocket, "HTTP/1.1 200\n\n<!DOCTYPE HTML> HELLO", 38, 0);
+                sendresult = send(clientSocket, "HTTP/1.1 200\r\n\r\n<!DOCTYPE HTML> HELLO", 38, 0);
                 done = true;
                 if (sendresult == SOCKET_ERROR)
                 {
