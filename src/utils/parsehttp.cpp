@@ -1,4 +1,5 @@
 #include "parsehttp.h"
+#include "url.h"
 void free_stringbuffer(st_ht_stringbuffer *buffer)
 {
     free(buffer->buffer);
@@ -14,7 +15,7 @@ int go_to_next_word(st_ht_stringbuffer *buffer)
     int n_headers = 0;
     for (int i = buffer->current; i < buffer->len; i++)
     {
-        if (buffer->buffer[i] == ' ' || buffer->buffer[i] == '\n')
+        if (buffer->buffer[i] == ' ' || buffer->buffer[i] == '\n' || buffer->buffer[i] == '\r')
         {
             if (buffer->buffer[i] == '\n')
             {
@@ -69,7 +70,6 @@ int ht_get_next_header(st_ht_stringbuffer *stringbuffer, st_html *filler)
     {
         return INVALID_REQUEST;
     }
-
     // get the title
     st_ht_stringbuffer title = {};
     title.len = 0;
@@ -148,6 +148,16 @@ void free_ht_struct(st_html *filler)
     {
         ch_destroy_hash(filler->headers);
         filler->headers = nullptr;
+    }
+    if (filler->body)
+    {
+        ch_destroy_hash(filler->body);
+        filler->body = nullptr;
+    }
+    if (filler->query)
+    {
+        ch_destroy_hash(filler->query);
+        filler->query = nullptr;
     }
 }
 
@@ -238,6 +248,21 @@ int chess_parse_html(const char *recb, int bufferlen, st_html *filler)
     sb_rec.len = bufferlen;
     while (!ht_get_next_header(&sb_rec, filler))
     {
+    }
+    st_ch_hashelement *contentlengthcontainer = ch_hash_get(filler->headers, "Content-Length", 15);
+    if (contentlengthcontainer)
+    {
+        char *endptr;
+        long content_length = strtol(contentlengthcontainer->value, &endptr, 10);
+        if (*endptr != '\0' && *endptr != '\n')
+        {
+            return INVALID_REQUEST;
+        }
+        if (content_length > 0)
+        {
+            filler->body = ch_create_hash_map();
+            url_parse_params(&sb_rec, filler->body);
+        }
     }
     return 0;
 }

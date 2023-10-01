@@ -1,7 +1,8 @@
+#pragma once
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "ch_hash.cpp"
+#include "ch_hash.h"
 #define INVALID_REQUEST -1
 // TURN THIS INTO MAP INSTEAD!
 struct st_headers
@@ -18,10 +19,10 @@ struct st_html
 {
     char *method;
     char *path;
-    char *query;
+    st_ch_hashmap *query;
+    st_ch_hashmap *body;
     char *protocol;
     st_ch_hashmap *headers;
-    char *body;
 };
 struct st_ht_stringbuffer
 {

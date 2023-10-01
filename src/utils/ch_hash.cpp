@@ -139,5 +139,6 @@ int ch_hashmap_insert(st_ch_hashmap *map, const char *key, int keylen, const cha
 
     int hash = ch_worst_hash(map->tablelen, key, keylen);
     ch_insert_hashelement(map->table, hash, key, keylen, value, valuelen);
+    map->filled_len++;
     return 0;
 }
