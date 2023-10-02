@@ -4,7 +4,7 @@ char url_decode_percent_char(st_ht_stringbuffer *buffer)
 {
     char *hex = (char *)malloc(3);
     char *endptr;
-    memcpy(hex, buffer + buffer->current + 1, 2);
+    memcpy(hex, buffer->buffer + buffer->current + 1, 2);
     hex[2] = '\0';
     char c = (char)strtol(hex, &endptr, 16);
     if (*endptr != '\0' && *endptr != '\n')
@@ -48,6 +48,7 @@ int url_parse_params(st_ht_stringbuffer *buffer, st_ch_hashmap *store)
                 {
                     buffer->buffer[buffer->current - offset] = url_decode_percent_char(buffer);
                     buffer->current += 3;
+                    offset += 2;
                 }
                 else
                 {
@@ -69,6 +70,8 @@ int url_parse_params(st_ht_stringbuffer *buffer, st_ch_hashmap *store)
         key[keylen] = '\0';
         value[valuelen] = '\0';
         ch_hashmap_insert(store, key, keylen + 1, value, valuelen + 1);
+        free(key);
+        free(value);
     }
     return 0;
 }

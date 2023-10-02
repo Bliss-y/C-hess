@@ -10,6 +10,15 @@ st_ch_hashelement *ht_get_header(st_html *filler, const char *key, int keylen)
     return ch_hash_get(filler->headers, key, keylen);
 }
 
+st_ch_hashelement *ht_get_body(st_html *filler, const char *key, int keylen)
+{
+    if (!filler->body)
+    {
+        return NULL;
+    }
+    return ch_hash_get(filler->body, key, keylen);
+}
+
 int go_to_next_word(st_ht_stringbuffer *buffer)
 {
     int n_headers = 0;
