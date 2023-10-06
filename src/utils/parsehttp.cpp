@@ -270,7 +270,10 @@ int chess_parse_html(const char *recb, int bufferlen, st_html *filler)
         if (content_length > 0)
         {
             filler->body = ch_create_hash_map();
-            url_parse_params(&sb_rec, filler->body);
+            if (url_parse_params(&sb_rec, filler->body))
+            {
+                return -1;
+            }
         }
     }
     return 0;
