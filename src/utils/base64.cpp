@@ -24,7 +24,11 @@ void base64_encode(const uint8_t *input, size_t input_len, char *output)
         output[j++] = base64_chars[(triple >> 0 * 6) & 0x3F];
     }
 
-    size_t padding = (input_len % 3);
+    size_t padding = 3 - (input_len % 3);
+    if (padding > 2)
+    {
+        padding = 0;
+    }
     for (size_t i = 0; i < padding; i++)
     {
         output[((input_len + 1) * 4 / 3) - padding + i] = '=';

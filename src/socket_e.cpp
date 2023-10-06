@@ -220,7 +220,7 @@ void handleClient(SOCKET clientSocket)
                         free(v);
                         char hexresult[41];
                         char responseheader[1024];
-                        base64_encode((uint8_t *)result, 21, hexresult);
+                        base64_encode((uint8_t *)result, 20, hexresult);
                         snprintf(responseheader, 1024, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", hexresult);
                         printf("sending the header back!");
                         send(clientSocket, responseheader, strlen(responseheader), 0);
