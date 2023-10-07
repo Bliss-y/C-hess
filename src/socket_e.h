@@ -26,3 +26,4 @@ void handleClient(SOCKET clientSocket);
 int socket_parse_ws(SOCKET socket, char *reciever, fd_set *fds);
 void zerofds(fd_set *fds);
 void setfd(fd_set *fds, SOCKET socket);
+int socket_send_ws(SOCKET socket, char *msg, int msglen);

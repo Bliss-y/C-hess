@@ -114,6 +114,15 @@ void zerofds(fd_set *fds)
     FD_ZERO(fds);
 }
 
+int socket_send_ws(SOCKET socket, char *msg, int msglen)
+{
+    char sendbuff[1000];
+    sprintf(sendbuff, "%c%c%s", (char)0x81, (char)msglen, msg);
+    send(socket, sendbuff, strlen(sendbuff), 0);
+    return 0;
+}
+
+// REMOVE FDS IF NOT NEEDED.
 int socket_parse_ws(SOCKET socket, char *reciever, fd_set *fds)
 {
     char recb[2000];
@@ -137,7 +146,7 @@ int socket_parse_ws(SOCKET socket, char *reciever, fd_set *fds)
     }
     fin = (recb[0] >> 7) & 1;
     opcode = recb[0] & 0x0F;
-    int mask = (recb[2] >> 7) & 1;
+    int mask = (recb[1] >> 7) & 1;
     if (mask == 0)
     {
         return SOCKET_ERR;

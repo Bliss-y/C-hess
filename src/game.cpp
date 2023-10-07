@@ -114,7 +114,7 @@ void gameLoop(st_game *game)
                 printf(recb);
                 printf("recbprinting end!\n");
                 printf("\n");
-                send(socket->socket, recb, res, 0);
+                socket_send_ws(socket->socket, recb, res);
             }
             socket = socket->next;
         }
