@@ -28,7 +28,8 @@ void broadcast(st_game *game, char *buff, int size)
     st_socket *prev = NULL;
     while (socket)
     {
-        send(socket->socket, buff, size, 0);
+        socket_send_ws(socket->socket, buff, size);
+        socket = socket->next;
     }
 }
 
@@ -119,7 +120,6 @@ void gameLoop(st_game *game)
             socket = socket->next;
         }
     }
-    printf("game starting?\n");
     while (true && game->game_status == GAME_STATUS_ONGOING)
     {
         st_socket *socket = game->sockets;
@@ -127,7 +127,7 @@ void gameLoop(st_game *game)
         while (socket)
         {
             char recb[2000];
-            int res = recv(socket->socket, recb, 2000, 0);
+            int res = socket_parse_ws(socket->socket, recb, &game->fds);
             if (res == 0)
             {
                 if (prev)
@@ -142,9 +142,15 @@ void gameLoop(st_game *game)
                 }
                 if (socket->player)
                 {
+                    free(socket);
+                    game->game_status = GAME_STATUS_WINNER1;
+                    printf("socket disconnected!\n");
                     break;
                 }
                 free(socket);
+            }
+            else if (res == SOCKET_ERR && SOCKET_NO_DATA)
+            {
             }
             if (socket->player)
             {
@@ -165,6 +171,7 @@ void gameLoop(st_game *game)
             socket = socket->next;
         }
     }
+    printf("Game ended!");
     if (game->game_status > GAME_STATUS_ONGOING)
     {
         // broadcast the winner!;

@@ -241,12 +241,20 @@ void handleClient(SOCKET clientSocket)
                                 return;
                             }
                             // make a successful connection
-                            char result[41];
-                            SHA1(result, connection_header->value, connection_header->vlen);
+                            char result[21];
+                            const int len = connection_header->vlen - 1 + strlen(MAGIC_KEY);
+                            char* v = (char*)malloc(len);
+                            v[0] = '\0';
+                            strcat(v, connection_header->value);
+                            strcat(v, MAGIC_KEY);
+                            SHA1(result, v, len);
+                            free(v);
+                            char hexresult[41];
                             char responseheader[1024];
-                            connection_pool[i].game_status = GAME_STATUS_ONGOING;
-                            snprintf(responseheader, 1024, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", result);
+                            base64_encode((uint8_t*)result, 20, hexresult);
+                            snprintf(responseheader, 1024, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", hexresult);
                             send(clientSocket, responseheader, strlen(responseheader), 0);
+                            connection_pool[i].game_status = GAME_STATUS_ONGOING;
                             return;
                         }
                     }
