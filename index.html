@@ -1,5 +1,19 @@
 <script>
-    var socker = new WebSocket("ws://localhost:3000/play");
+    var socket = new WebSocket("ws://localhost:3000/play");
+    socket.addEventListener("open", (e)=>{
+        console.log("connection opened!!!");
+        //socket.send("hello!");
+    })
+    socket.onmessage = (e)=>{
+        console.log("message from server", e.data);
+    }
+    socket.onclose = e=>{
+        console.log(e);
+    }
+    function sendmessage(){
+        socket.send("message!");
+    }
+
 </script>
 
 
@@ -8,3 +22,5 @@
     <input type="password" name="password" id="">
     <input type="submit" value="">
 </form>
+
+<button onclick="sendmessage()">Send message to ws server</button>

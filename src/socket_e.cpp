@@ -6,7 +6,7 @@
 
 const char *MAGIC_KEY = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-st_game *connection_pool = (st_game *)malloc(sizeof(st_game) * MAX_CONNECTION_POOL_SIZE);
+st_game connection_pool[MAX_CONNECTION_POOL_SIZE];
 int connection_pool_size = MAX_CONNECTION_POOL_SIZE;
 int connection_pool_filled = 0;
 
@@ -89,12 +89,10 @@ int main()
     while (true)
     {
 
-        printf("while loop\n");
         // temporary client socket/
         SOCKET clientSocket = INVALID_SOCKET;
 
         clientSocket = accept(listener, NULL, NULL);
-        printf("client found?\n");
         if (clientSocket == INVALID_SOCKET)
         {
             printf(" Client connection failed");
@@ -102,16 +100,74 @@ int main()
             continue;
         }
         handleClient(clientSocket);
-        char recvbuff[4000];
-        int rec_result, send_resultj;
-        bool done = false;
+    }
+    return 0;
+}
 
-        for (int i = 0; i <= connection_pool_filled; i++)
-        {
-        }
+void setfd(fd_set *fds, SOCKET socket)
+{
+    FD_SET(socket, fds);
+}
 
+void zerofds(fd_set *fds)
+{
+    FD_ZERO(fds);
+}
+
+int socket_parse_ws(SOCKET socket, char *reciever, fd_set *fds)
+{
+    char recb[2000];
+    int res = recv(socket, recb, 2000, 0);
+    int fin = 0;
+    int opcode = 0;
+    if (res == 0)
+    {
+        // connection closed!
         return 0;
     }
+    else if (res == SOCKET_ERR && SOCKET_NO_DATA)
+    {
+        // no data!
+        return SOCKET_ERR;
+    }
+    else if (res == SOCKET_ERR)
+    {
+        // ERR reading data from that place!
+        return SOCKET_ERR;
+    }
+    fin = (recb[0] >> 7) & 1;
+    opcode = recb[0] & 0x0F;
+    int mask = (recb[2] >> 7) & 1;
+    if (mask == 0)
+    {
+        return SOCKET_ERR;
+    }
+    uint64_t payload_length = recb[1] & 0x7F; // last 7 bits
+    int current = 2;
+    if (payload_length == 126)
+    {
+        // read next 16 bytes for payload lengthh
+        payload_length = (uint16_t)recb[2];
+        current = 4;
+    }
+    else if (payload_length == 127)
+    {
+        // read next 64 bytes for payload length
+        payload_length = (uint64_t)recb[2];
+        current = 10;
+    }
+    printf("payload_length: %lld\n", payload_length);
+    char masking_key[] = {recb[current + 0], recb[current + 1], recb[current + 2], recb[current + 3]};
+    current += 4;
+    for (int i = 0; i < payload_length; i++)
+    {
+        reciever[i] = (char)(recb[i + current] ^ masking_key[i % 4]);
+        printf("\n");
+        printf("%c", reciever[i]);
+        printf("\n");
+    }
+    reciever[payload_length] = '\0';
+    return payload_length;
 }
 
 void handleClient(SOCKET clientSocket)
@@ -123,12 +179,9 @@ void handleClient(SOCKET clientSocket)
     bool done = false;
     do
     {
-        printf("still recieving ??\n");
         rec_result = recv(clientSocket, recvbuf, recvbufflen, 0);
-        printf("yes\n");
         if (rec_result > 0)
         {
-            printf(recvbuf);
             st_html filler = {};
             int res = chess_parse_html(recvbuf, rec_result, &filler);
             if (res)
@@ -149,32 +202,29 @@ void handleClient(SOCKET clientSocket)
                 connection_header = ht_get_header(&filler, "Upgrade", 8);
                 if (!connection_header && strcmp(connection_header->value, "WebSocket"))
                 {
-                    printf("header upgrade was not WebSocket");
                     closesocket(clientSocket);
                     return;
                 }
                 connection_header = ht_get_header(&filler, "X-request", 10);
                 if (true || !strcmp(connection_header->value, "find"))
                 {
-                    printf("successfully parsed and ok request for a game!");
-                    bool gamefound = false;
-                    for (int i = 0; i <= connection_pool_filled; i++)
+                    u_long nonBlockingCommand = 1;
+                    if (ioctlsocket(clientSocket, FIONBIO, &nonBlockingCommand) != 0)
                     {
-                        if (!connection_pool[i].game_status)
+                        closesocket(clientSocket);
+                        return;
+                    }
+                    for (int i = 0; i <= MAX_CONNECTION_POOL_SIZE; i++)
+                    {
+                        if (connection_pool[i].game_status == GAME_STATUS_FINDING)
                         {
                             st_socket *sc = (st_socket *)malloc(sizeof(st_socket));
                             sc->game_id = i;
                             sc->player = true;
-                            sc->side = 0;
+                            sc->side = GAME_SIDE_BLACK;
                             sc->socket = clientSocket;
-                            st_socket *head = connection_pool[i].sockets;
-                            while (head->next)
-                            {
-                                head = head->next;
-                            }
-                            head->next = sc;
+                            game_add_socket(&connection_pool[i], sc);
                             connection_pool[i].socket_len++;
-                            gamefound = true;
                             connection_header = ht_get_header(&filler, "Sec-WebSocket-Key", 18);
                             if (!connection_header)
                             {
@@ -185,49 +235,57 @@ void handleClient(SOCKET clientSocket)
                             char result[41];
                             SHA1(result, connection_header->value, connection_header->vlen);
                             char responseheader[1024];
+                            connection_pool[i].game_status = GAME_STATUS_ONGOING;
                             snprintf(responseheader, 1024, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", result);
                             send(clientSocket, responseheader, strlen(responseheader), 0);
+                            return;
                         }
                     }
-                    if (gamefound)
-                        return;
 
                     if (connection_pool_size > connection_pool_filled)
                     {
                         // spawn a thread lil bro
-                        st_socket *sc = (st_socket *)malloc(sizeof(st_socket));
-                        sc->game_id = connection_pool_filled;
-                        sc->player = true;
-                        sc->side = 0;
-                        sc->socket = clientSocket;
-                        st_socket *head = connection_pool[connection_pool_filled].sockets;
-                        connection_pool[connection_pool_filled].sockets = sc;
-                        connection_pool[connection_pool_filled].socket_len = 1;
-                        connection_header = ht_get_header(&filler, "Sec-WebSocket-Key", 18);
-                        if (!connection_header)
+                        for (int i = 0; i < MAX_CONNECTION_POOL_SIZE; i++)
                         {
-                            closesocket(clientSocket);
-                            return;
+                            if (connection_pool[i].game_status == GAME_STATUS_NONE)
+                            {
+                                connection_pool[i].game_status = GAME_STATUS_FINDING;
+                                st_socket *sc = (st_socket *)malloc(sizeof(st_socket));
+                                FD_SET(clientSocket, &connection_pool[i].fds);
+                                sc->game_id = i;
+                                sc->player = true;
+                                sc->side = 0;
+                                sc->socket = clientSocket;
+                                st_socket *head = connection_pool[i].sockets;
+                                connection_pool[i].sockets = sc;
+                                connection_pool[i].socket_len = 1;
+                                connection_header = ht_get_header(&filler, "Sec-WebSocket-Key", 18);
+                                if (!connection_header)
+                                {
+                                    closesocket(clientSocket);
+                                    return;
+                                }
+                                // make a successful connection
+                                char result[21];
+                                const int len = connection_header->vlen - 1 + strlen(MAGIC_KEY);
+                                char *v = (char *)malloc(len);
+                                v[0] = '\0';
+                                strcat(v, connection_header->value);
+                                strcat(v, MAGIC_KEY);
+                                SHA1(result, v, len);
+                                free(v);
+                                char hexresult[41];
+                                char responseheader[1024];
+                                base64_encode((uint8_t *)result, 20, hexresult);
+                                snprintf(responseheader, 1024, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", hexresult);
+                                send(clientSocket, responseheader, strlen(responseheader), 0);
+                                HANDLE hThread;   // Thread handle
+                                DWORD dwThreadId; // Thread ID
+                                hThread = CreateThread(NULL, 0, ThreadFunction, &connection_pool[i], 0, &dwThreadId);
+                                connection_pool[i].threadId = hThread;
+                                return;
+                            }
                         }
-                        // make a successful connection
-                        char result[21];
-                        const int len = connection_header->vlen - 1 + strlen(MAGIC_KEY);
-                        char *v = (char *)malloc(len);
-                        v[0] = '\0';
-                        strcat(v, connection_header->value);
-                        strcat(v, MAGIC_KEY);
-                        SHA1(result, v, len);
-                        free(v);
-                        char hexresult[41];
-                        char responseheader[1024];
-                        base64_encode((uint8_t *)result, 20, hexresult);
-                        snprintf(responseheader, 1024, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", hexresult);
-                        printf("sending the header back!");
-                        send(clientSocket, responseheader, strlen(responseheader), 0);
-                        HANDLE hThread;   // Thread handle
-                        DWORD dwThreadId; // Thread ID
-                        hThread = CreateThread(NULL, 0, ThreadFunction, &connection_pool[connection_pool_filled], 0, &dwThreadId);
-                        connection_pool[connection_pool_filled].threadId = hThread;
                     }
                     else
                     {

@@ -9,6 +9,8 @@
 #include "utils/url.cpp"
 #define DEFAULT_PORT "3000"
 #define TH_ID HANDLE
+#define SOCKET_NO_DATA WSAGetLastError() == WSAEWOULDBLOCK
+#define SOCKET_ERR SOCKET_ERROR
 struct st_socket
 {
     int game_id;
@@ -21,3 +23,6 @@ struct st_socket
 };
 
 void handleClient(SOCKET clientSocket);
+int socket_parse_ws(SOCKET socket, char *reciever, fd_set *fds);
+void zerofds(fd_set *fds);
+void setfd(fd_set *fds, SOCKET socket);
