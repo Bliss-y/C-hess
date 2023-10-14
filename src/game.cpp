@@ -2,6 +2,7 @@
 #define GAME_STATUS_NONE 0
 #define GAME_STATUS_ONGOING 2
 #define GAME_STATUS_FINDING 1
+#define GAME_MOVE_INVALID -1
 #define GAME_STATUS_WINNER1 3
 #define GAME_STATUS_WINNER2 4
 #define GAME_STATUS_DRAW 5
@@ -14,7 +15,7 @@ struct st_game
     int id;
     int socket_len;
     int game_status;
-    char *current_fen;
+    char current_fen[72];
     char *current_mov;
     int turn;
     fd_set fds;
@@ -205,4 +206,61 @@ void gameLoop(st_game *game)
         free(game->current_mov);
     }
     return;
+}
+
+int game_fen(st_game *game, char *move, int nsize)
+{
+
+    // move
+    // castling availability
+    // en passant
+    // 50-move / half move since last pawn move or capture
+    // total number of move
+}
+
+int game_validate_move(st_game *game, int size, char *move)
+{
+    char piece = move[0];
+    char action = move[1];   // space for move, x for takes
+    int file = move[2] - 97; // 0-8
+    if (file > 7)
+    {
+        return GAME_MOVE_INVALID;
+    }
+    int finalfile = move[3] - 97;
+    int finalrank = move[4] - 49;
+    char newfen[64];
+    memcpy(&newfen, game->current_fen, 64);
+    switch (piece)
+    {
+    case 'P':
+        const char fenlookupchar = 'p' - (game->turn * 32);
+        int prev_required_board_position = finalrank + (game->turn - 1) + 8;
+        if (action == ' ')
+        {
+        }
+        else if (action == 'x')
+        {
+        }
+        if (game->current_fen[prev_required_board_position] == fenlookupchar)
+        {
+        }
+        else
+        {
+            return GAME_MOVE_INVALID;
+        }
+        break;
+    case 'R':
+        break;
+    case 'N':
+        break;
+    case 'B':
+        break;
+    case 'K':
+        break;
+    case 'Q':
+        break;
+    default:
+        return -1;
+    }
 }
